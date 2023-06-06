@@ -1,0 +1,18 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source: {repository: ubuntu}
+
+inputs:
+- name: resources
+  path: input-resources
+
+outputs:
+- name: output-folder
+
+run:
+  path: find
+  args: [.]
+
+# fly -t ps execute -c mod2-task-2.yml -i resources=./resources

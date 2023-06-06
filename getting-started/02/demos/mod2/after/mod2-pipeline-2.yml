@@ -1,0 +1,42 @@
+---
+resources:
+- name: source-code
+  type: git
+  source:
+    uri: https://github.com/rseroter/pluralsight-concourse-dotnetcore.git
+    branch: master
+    
+jobs:
+  - name: unit-test
+    plan:
+    - get: source-code
+    - task: run-tests
+      config: 
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: mcr.microsoft.com/dotnet/core/sdk
+            tag: 2.2
+        inputs:
+        - name: source-code
+        outputs:
+        - name: test-results
+        run:
+            path: sh
+            args:
+            - -exec
+            - |
+              dotnet test ./source-code/pluralsight-concourse-dotnetcore.csproj --logger "trx" --results-directory ../test-results
+    - task: review-results
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source: {repository: ubuntu}
+        inputs:
+        - name: test-results
+        run:
+            path: find
+            args: [.]
+# fly -t ps set-pipeline -c mod2-pipeline-2.yml -p mod2-pipeline-2
