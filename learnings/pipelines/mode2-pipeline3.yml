@@ -1,0 +1,103 @@
+---
+resources:
+- name: source-code
+  type: git
+  source:
+    uri: https://github.com/rseroter/pluralsight-concourse-dotnetcore.git
+    branch: master
+- name: artifact-repository
+  type: s3
+  source:
+    bucket: pluralsight-concourse
+    region_name: us-west-2
+    access_key_id: XXXX
+    secret_access_key: XXXX
+    versioned_file: app.tar.gz
+    
+jobs:
+  - name: unit-test
+    plan:
+    - get: source-code
+    - task: run-tests
+      config: 
+        platform: linux
+        image_resource:
+          type: docker-image
+          source:
+            repository: mcr.microsoft.com/dotnet/core/sdk
+            tag: 2.2
+        inputs:
+        - name: source-code
+        outputs:
+        - name: test-results
+        run:
+            path: sh
+            args:
+            - -exec
+            - |
+              dotnet test ./source-code/pluralsight-concourse-dotnetcore.csproj --logger "trx" --results-directory ../test-results
+    - task: review-results
+      config:
+        platform: linux
+        image_resource:
+          type: docker-image
+          source: {repository: ubuntu}
+        inputs:
+        - name: test-results
+        run:
+            path: find
+            args: [.]
+  - name: package-app   
+    plan:
+      - get: source-code
+        passed: [unit-test]
+        trigger: true
+      - task: publish-code
+        config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source: 
+              repository: mcr.microsoft.com/dotnet/core/sdk
+              tag: 2.2
+          inputs:
+          - name: source-code
+          outputs:
+          - name: compiled-app
+          - name: packaged-core-app
+          run:
+              path: sh
+              args:
+              - -exec
+              - |
+                dotnet publish ./source-code/pluralsight-concourse-dotnetcore.csproj -o .././compiled-app
+                tar -czvf ./packaged-core-app/app.tar.gz ./compiled-app
+                ls
+                cd packaged-core-app
+                ls  
+      - put: artifact-repository
+        params:
+          file: packaged-core-app/app.tar.gz
+  - name: deploy-app
+    plan:
+    - get: artifact-repository
+      passed: [package-app]
+      trigger: true
+    - task: unpack-code
+      config:
+          platform: linux
+          image_resource:
+            type: docker-image
+            source: {repository: ubuntu}
+          inputs:
+          - name: artifact-repository
+          outputs:
+          - name: extracted-package
+          run:
+              path: sh
+              args: 
+                - -exec
+                - |
+                  tar -xzvf ./artifact-repository/app.tar.gz -C ./extracted-package
+                  find .
+# fly -t ps set-pipeline -c mod2-pipeline-3.yml -p mod2-pipeline-3

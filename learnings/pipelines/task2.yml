@@ -1,0 +1,15 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source: {repository: busybox}
+
+inputs:
+- name: resources
+  path: input-resources
+
+run:
+  path: find
+  args: [.]
+
+# fly -t ps execute -c task2.yml -i resources=./resources

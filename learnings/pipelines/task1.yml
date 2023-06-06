@@ -1,0 +1,14 @@
+---
+platform: linux
+image_resource:
+  type: docker-image
+  source: {repository: busybox}
+
+outputs:
+- name: output_folder
+
+run:
+  path: find
+  args: [.]
+
+# fly -t ps execute -c task1.yml 
